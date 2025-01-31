@@ -1,0 +1,41 @@
+name: Release and Publish
+
+on:
+  push:
+    branches:
+      - main
+      - next
+  workflow_dispatch:
+
+# Add permissions block at workflow level
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out the code
+        uses: actions/checkout@v4 # Updated to v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false # Important for semantic-release
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+
+      - name: Install Dependencies
+        run: bun install
+
+      - name: Run Semantic Release
+        env:
+          # Since you're using a custom token, adding the server URL is recommended
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }} # Duplicate for compatibility
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: bun run release

@@ -1,0 +1,153 @@
+---
+id: routes
+title: Routes
+---
+
+# Routing System Documentation
+
+## Overview
+
+The routing system provides a flexible, type-safe approach to defining routes in your application.
+
+## Basic Route Definition
+
+### HTTP Methods
+
+The router supports standard HTTP methods:
+
+```typescript
+// Basic route definition
+router.get('/users', [UserController, 'index']);
+router.post('/users', [UserController, 'store']);
+router.put('/users/{id}', [UserController, 'update']);
+router.delete('/users/{id}', [UserController, 'destroy']);
+router.patch('/users/{id}', [UserController, 'patch']);
+```
+
+## Controller Method Structure
+
+### Basic Controller
+
+```typescript
+class UserController extends BaseController {
+  // Simple method with full context access
+  async index({ req, res, params, query }: RouterContext): Promise<Response> {
+    const users = await User.findAll();
+    return res.json(users);
+  }
+
+  // Method with specific param
+  async show({ params, res }: RouterContext): Promise<Response> {
+    const user = await User.findById(params.id);
+    return res.json(user);
+  }
+}
+```
+
+## Route Middleware
+
+### Adding Middleware to Routes
+
+```typescript
+// Single route middleware
+router.get('/users', [UserController, 'index'], ['auth']);
+
+// Multiple middlewares
+router.post('/users', [UserController, 'store'], ['auth', 'validate']);
+```
+
+## Route Grouping
+
+### Grouping Routes with Prefix and Middleware
+
+```typescript
+router.group({ 
+  prefix: '/admin', 
+  middleware: ['auth', 'admin'] 
+}, () => {
+  // All these routes will have /admin prefix and admin middlewares
+  router.get('/dashboard', [AdminController, 'dashboard']);
+  router.get('/users', [AdminController, 'userList']);
+});
+```
+
+## Advanced Routing
+
+### Dynamic Segments
+
+```typescript
+// Dynamic segments in routes
+router.get('/users/{id}', [UserController, 'show']);
+```
+
+## Error Handling
+
+The router provides basic error handling:
+- 404 for routes not found
+- 500 for internal server errors
+
+## Best Practices
+
+1. Keep controllers focused on specific actions
+2. Use middleware for cross-cutting concerns
+3. Leverage type safety for params and queries
+
+## Typed Route Parameters
+
+```typescript
+// Example of typed route with number param
+router.get('/users/{userId}', [UserController, 'show'], [], { 
+  params: { userId: 'number' },
+  query: { active: 'boolean' }
+});
+
+// In controller
+async show(context: RouterContext<Params<{ userId: 'number' }>, Query<{ active: 'boolean' }>>) {
+  const userId = context.params.userId; // typed as number
+  const isActive = context.query.active; // typed as boolean
+}
+```
+
+## Route Loading
+
+The system supports automatic route loading from directory:
+
+```typescript
+RouteLoader.loadRoutesFromDirectory();
+```
+
+## TypeScript Support
+
+Full TypeScript type safety for:
+- Route parameters
+- Query parameters
+- Controller methods
+- Request context
+
+## Common Patterns
+
+### CRUD Controller Example
+
+```typescript
+class UserController extends BaseController {
+  async index(context: RouterContext): Promise<Response> {
+    // List all users
+  }
+
+  async show(context: RouterContext): Promise<Response> {
+    // Show specific user
+  }
+
+  async store(context: RouterContext): Promise<Response> {
+    // Create new user
+  }
+
+  async update(context: RouterContext): Promise<Response> {
+    // Update existing user
+  }
+
+  async destroy(context: RouterContext): Promise<Response> {
+    // Delete user
+  }
+}
+```

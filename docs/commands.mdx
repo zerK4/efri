@@ -1,0 +1,33 @@
+---
+title: Commands
+description: Build a command for efri.
+---
+
+```
+import { Command } from "../cli/Command";
+import { mkdirSync, writeFileSync } from "fs";
+import { join } from "path";
+
+export default class MakeModel extends Command {
+  name = "make:model";
+  description = "Create a new model";
+  arguments = ["name"];
+  options = {
+    "--migration": "Create a migration for the model",
+  };
+
+  async handle(args: string[], options: Record<string, boolean>) {
+    const [name] = args;
+    const modelsDir = join(process.cwd(), "src", "models");
+
+    // Create the models directory if it doesn't exist
+    mkdirSync(modelsDir, { recursive: true });
+
+    const filePath = join(modelsDir, `${name}.ts`);
+    const content = `export class ${name} {\n  // Your model logic\n}`;
+
+    writeFileSync(filePath, content);
+    console.log(`Model ${name} created at ${filePath}`);
+  }
+}
+```
