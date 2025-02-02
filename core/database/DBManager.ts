@@ -1,4 +1,4 @@
-import type { DatabaseConfig } from '@/types/database';
+import type { DatabaseConfig } from '../types/database';
 import { Connection } from './Connection';
 
 export class DatabaseManager {

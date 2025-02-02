@@ -1,7 +1,7 @@
 import type { Knex } from 'knex';
-import { DatabaseManager } from '@/database/DBManager';
+import { DatabaseManager } from '../database/DBManager';
 import { ModelQuery } from './ModelQuery';
-import { ConfigLoader } from '@/config/config/ConfigLoader';
+import { ConfigLoader } from '../config/config/ConfigLoader';
 
 const databaseConfig = await ConfigLoader.getConfig('connections');
 

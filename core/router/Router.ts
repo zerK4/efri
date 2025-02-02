@@ -1,6 +1,6 @@
 import { ResponseHelper } from '../helpers/ResponseHelper';
 import { MiddlewareStack } from '../middlewares/Middleware';
-import type { HttpMethod, Route, RouteHandler } from '@/types/router';
+import type { HttpMethod, Route, RouteHandler } from '../types/router';
 
 export class Router {
   private static instance: Router;
@@ -201,7 +201,7 @@ export class Router {
       const match = this.matchRoute(req.method, url.pathname);
 
       if (!match) {
-        return res.json({ error: 'Not Found' }, 404);
+        return res.json({ error: 'The route was not found' }, 404);
       }
 
       const { route, params, query } = match;

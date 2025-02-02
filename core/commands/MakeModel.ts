@@ -1,4 +1,5 @@
-import { Command } from '@/cli/Command';
+import { Command } from '../cli/Command';
+import chalk from 'chalk';
 import { mkdirSync, writeFileSync } from 'fs';
 import { join } from 'path';
 
@@ -31,7 +32,10 @@ export class ${name} extends Model<I${name}> {
 `;
 
     writeFileSync(filePath, content);
-    console.log(`Model ${name} created at ${filePath}`);
+    console.log(
+      `\n${chalk.green('✅ Success!')} Model ${chalk.bold.blue(name)} has been created at:\n` +
+        `📂 ${chalk.gray(filePath)}\n`
+    );
 
     if (context.options['migration']) {
       // Potential future implementation for automatic migration creation

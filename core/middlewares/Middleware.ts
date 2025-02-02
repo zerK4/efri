@@ -1,4 +1,4 @@
-import type { MiddlewareHandler } from '@/types/middleware';
+import type { MiddlewareHandler } from '../types/middleware';
 import StaticFileMiddleware from './StaticFilesMiddleware';
 
 export class MiddlewareStack {

@@ -1,4 +1,4 @@
-import type { Command } from '@/cli/Command';
+import type { Command } from '../cli/Command';
 
 export interface CommandSource {
   path: string;

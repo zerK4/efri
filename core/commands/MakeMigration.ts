@@ -1,4 +1,5 @@
-import { Command } from '@/cli/Command';
+import { Command } from '../cli/Command';
+import chalk from 'chalk';
 import { mkdirSync, writeFileSync } from 'fs';
 import { join } from 'path';
 
@@ -42,6 +43,9 @@ export class ${finalName} extends Migration {
 `;
 
     writeFileSync(filePath, content);
-    console.log(`Migration file ${finalName} created at ${filePath}`);
+    console.log(
+      `\n${chalk.green('✅ Success!')} Migration ${chalk.bold.blue(name)} has been created at:\n` +
+        `📂 ${chalk.gray(filePath)}\n`
+    );
   }
 }

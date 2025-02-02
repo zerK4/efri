@@ -1,4 +1,4 @@
-import PluginLoader from '@/plugins/PluginLoader';
+import { PluginLoader } from '../plugins/PluginLoader';
 
 export class ResponseHelper {
   private static instance: ResponseHelper;

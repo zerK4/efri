@@ -2,7 +2,7 @@ import pino from 'pino';
 import { mkdirSync, existsSync, writeFileSync } from 'fs';
 import { dirname } from 'path';
 import { ConfigLoader } from '../config/config/ConfigLoader';
-import type { LoggerConfig } from '@/types/logger';
+import type { LoggerConfig } from '../types/logger';
 
 let loggerConfig = await ConfigLoader?.getConfig('logger');
 

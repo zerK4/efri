@@ -1,4 +1,4 @@
-import type { ResponseHelper } from '@/helpers/ResponseHelper';
+import type { ResponseHelper } from '../helpers/ResponseHelper';
 
 export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
 
@@ -9,7 +9,10 @@ export type ControllerMethod = (context: {
   query: Record<string, any>;
 }) => Promise<Response>;
 
-export type RouteHandler = ControllerMethod | ((ctx: RouterContext) => any);
+export type RouteHandler =
+  | ControllerMethod
+  | ((ctx: RouterContext) => any)
+  | [new () => any, string];
 
 export interface Route {
   method: HttpMethod;

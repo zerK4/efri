@@ -1,4 +1,4 @@
-import type { RouterContext } from '@/types/router';
+import type { RouterContext } from '../types/router';
 
 export abstract class Controller {
   protected context?: RouterContext;

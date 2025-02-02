@@ -1,8 +1,8 @@
-import type { ConfigRegistry } from '@/types/config';
 import chalk from 'chalk';
 import { existsSync, mkdirSync, readdirSync } from 'fs';
 import { join } from 'path';
 import { z } from 'zod';
+import type { ConfigRegistry } from '../../types';
 
 export class ConfigLoader {
   private static configs: Map<string, any> = new Map();
@@ -57,11 +57,17 @@ export class ConfigLoader {
   ): Promise<string[]> {
     const loadedConfigs: string[] = [];
 
+    const env =
+      this.configs?.get('app')?.env !== 'production' &&
+      process.env.NODE_ENV !== 'production';
+
     if (!existsSync(path)) {
-      this.logger.log(
-        `${chalk.yellow('No config folder found, creating it...')} at ${path}`
-      );
-      mkdirSync(path, { recursive: true });
+      if (env) {
+        this.logger.log(
+          `${chalk.yellow('No config folder found, creating it...')} at ${path}`
+        );
+        mkdirSync(path, { recursive: true });
+      }
       return loadedConfigs;
     }
 

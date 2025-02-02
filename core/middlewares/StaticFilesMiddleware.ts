@@ -1,5 +1,5 @@
-import type { MiddlewareHandler } from '@/types';
-import type { ICorePlugin } from '@/types/plugin';
+import type { MiddlewareHandler } from '../types';
+import type { ICorePlugin } from '../types/plugin';
 import { promises as fs } from 'fs';
 import path from 'path';
 

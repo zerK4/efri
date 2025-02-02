@@ -1,10 +1,10 @@
 import RouteLoader from '../router/RouteLoader';
 import chalk from 'chalk';
-import type { HttpMethod } from '@/types/router';
-import { Command } from '@/cli/Command';
-import type { RouteInfo } from '@/types/routes';
+import type { HttpMethod } from '../types/router';
+import { Command } from '../cli/Command';
+import type { RouteInfo } from '../types/routes';
 import path from 'path';
-import PluginLoader from '@/plugins/PluginLoader';
+import { PluginLoader } from '../plugins/PluginLoader';
 
 export default class ListRoutes extends Command {
   name = 'routes:list';

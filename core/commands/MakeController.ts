@@ -1,5 +1,6 @@
-import { extendedController, simpleController } from '@/bootstrap/controller';
-import { Command } from '@/cli/Command';
+import { extendedController, simpleController } from '../bootstrap/controller';
+import { Command } from '../cli/Command';
+import chalk from 'chalk';
 import { mkdirSync, writeFileSync } from 'fs';
 import { join } from 'path';
 
@@ -28,6 +29,9 @@ export default class MakeController extends Command {
     }
 
     writeFileSync(filePath, content);
-    console.log(`Controller ${name} created at ${filePath}`);
+    console.log(
+      `\n${chalk.green('✅ Success!')} Controller ${chalk.bold.blue(name)} has been created at:\n` +
+        `📂 ${chalk.gray(filePath)}\n`
+    );
   }
 }

@@ -1,5 +1,5 @@
-import { Router } from '@/router';
-import type { RouterContext } from '@/types';
+import { Router } from '../router';
+import type { RouterContext } from '../types';
 import { promises as fs } from 'fs';
 import { extname, join } from 'path';
 

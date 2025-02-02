@@ -2,8 +2,8 @@ import { readdirSync, existsSync, mkdirSync } from 'fs';
 import { join } from 'path';
 import { z } from 'zod';
 import { Command } from './Command';
-import type { CommandMetadata, CommandSource } from '@/types/command';
 import chalk from 'chalk';
+import type { CommandMetadata, CommandSource } from '../types';
 
 const CommandSchema = z.object({
   name: z.string().min(1),

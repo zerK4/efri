@@ -1,12 +1,14 @@
-import { staticFilePlugin } from '@/middlewares/StaticFilesMiddleware';
-import type { ICorePlugin } from '@/types/plugin';
 import { readdir } from 'fs/promises';
 import { join, extname } from 'path';
+import type { ICorePlugin } from '../types/plugin';
+import { ConfigLoader } from '../config';
+
+const app = await ConfigLoader.getConfig('app');
 
 /**
  * The PluginLoader class is responsible for discovering and registering plugins.
  */
-export default class PluginLoader {
+export class PluginLoader {
   private static instance: PluginLoader;
   public static plugins: ICorePlugin[] = [];
 
@@ -32,7 +34,13 @@ export default class PluginLoader {
    */
   static async discoverPlugins() {
     const basePath = process.cwd();
-    const pluginsDir = join(basePath, 'src/plugins');
+    const pluginsDir = join(
+      basePath,
+      (app && app['env'] === 'production') ||
+        process.env.NODE_ENV === 'production'
+        ? 'dist/plugins'
+        : 'src/plugins'
+    );
     let files: string[];
 
     /**
@@ -42,14 +50,14 @@ export default class PluginLoader {
       let result: string[] = [];
       const list = await readdir(dir, { withFileTypes: true });
 
-      for (const dirent of list) {
-        const fullPath = join(dir, dirent.name);
+      for (const direct of list) {
+        const fullPath = join(dir, direct.name);
 
-        if (dirent.isDirectory()) {
+        if (direct.isDirectory()) {
           result = [...result, ...(await getFilesRecursively(fullPath))];
         } else if (
-          extname(dirent.name) === '.ts' ||
-          extname(dirent.name) === '.tsx'
+          extname(direct.name) === '.ts' ||
+          extname(direct.name) === '.tsx'
         ) {
           result.push(fullPath);
         }

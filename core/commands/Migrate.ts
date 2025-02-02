@@ -1,7 +1,7 @@
-import { Command } from '@/cli/Command';
-import { ConfigLoader } from '@/config';
-import { DatabaseManager } from '@/database/DBManager';
-import { Migrator } from '@/database/Migrator';
+import { Command } from '../cli/Command';
+import { ConfigLoader } from '../config';
+import { DatabaseManager } from '../database/DBManager';
+import { Migrator } from '../database/Migrator';
 
 const databaseConfig = await ConfigLoader.getConfig('connections');
 

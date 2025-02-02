@@ -1,4 +1,4 @@
-import type { HttpMethod } from '@/types/router';
+import type { HttpMethod } from '../types/router';
 
 export interface RouteInfo {
   handler?: any;

@@ -1,5 +1,6 @@
-import type { ResponseHelper } from '@/helpers';
+import type { ResponseHelper } from '../helpers';
 import type { RouteInfo } from './routes';
+import type { GateFunction } from './gate';
 
 export interface ICorePlugin {
   name: string;

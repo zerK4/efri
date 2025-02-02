@@ -1,7 +1,7 @@
-import { ConfigLoader } from '@/config';
+import { ConfigLoader } from '../config';
 import { Command } from '../cli/Command';
-import { DatabaseManager } from '@/database/DBManager';
-import { Migrator } from '@/database/Migrator';
+import { DatabaseManager } from '../database/DBManager';
+import { Migrator } from '../database/Migrator';
 import chalk from 'chalk';
 
 const databaseConfig = await ConfigLoader.getConfig('connections');

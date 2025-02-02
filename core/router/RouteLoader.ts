@@ -1,9 +1,12 @@
 import { Router } from './Router';
 import { relative, join } from 'path';
-import type { RouteInfo } from '@/types/routes';
 import fs from 'fs';
-import type { HttpMethod } from '@/types';
-import PluginLoader from '@/plugins/PluginLoader';
+import type { RouteInfo } from '../types/routes';
+import { PluginLoader } from '../plugins/PluginLoader';
+import type { HttpMethod } from '../types';
+import { ConfigLoader } from '../config';
+
+const app = await ConfigLoader.getConfig('app');
 
 /**
  * The RouteLoader class is responsible for loading routes
@@ -74,6 +77,19 @@ export default class RouteLoader {
         withSourceInfo
       );
       routes.push(...packageRoutes);
+    }
+
+    const prodRoutesPath = join(process.cwd(), 'dist/routes');
+    if (
+      (fs.existsSync(prodRoutesPath) &&
+        process.env.NODE_ENV === 'production') ||
+      (app && app['env'] === 'production')
+    ) {
+      const prodRoutes = await this.loadRoutesFromPath(
+        prodRoutesPath,
+        withSourceInfo
+      );
+      routes.push(...prodRoutes);
     }
 
     /**
