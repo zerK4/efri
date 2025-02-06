@@ -12,7 +12,7 @@ export default class Migrate extends Command {
     args: string[];
     options: Record<string, boolean | string>;
   }): Promise<void> {
-    const db = new DatabaseManager(config.get('connections'));
+    const db = new DatabaseManager(config.get('connections')!);
     const migrator = new Migrator(db, context.options['path'] as string);
 
     try {

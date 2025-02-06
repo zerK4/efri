@@ -3,6 +3,7 @@ import path from 'path';
 import { DatabaseManager } from './DBManager';
 import chalk from 'chalk';
 import { CoreError } from '../errors/CoreError';
+import { logger } from '../logger';
 
 export class Migrator {
   private migrationsPath: string;
@@ -13,6 +14,26 @@ export class Migrator {
     this.migrationsPath =
       migrationsPath ||
       path.join(process.cwd(), 'src', 'database', 'migrations');
+  }
+
+  private async cleanup(): Promise<void> {
+    try {
+      const connection = this.db.connection();
+      // Force all queries to complete
+      await connection.query().select(1);
+
+      // Destroy the connection pool
+      await connection.disconnect();
+
+      // Force process exit after a small delay if still hanging
+      setTimeout(() => {
+        process.exit(0);
+      }, 100);
+    } catch (error) {
+      logger.error('Error while closing database connection:', error);
+      // Force exit even on error
+      process.exit(1);
+    }
   }
 
   private async ensureMigrationsTable(): Promise<void> {
@@ -59,10 +80,7 @@ export class Migrator {
 
   private async importMigration(migrationPath: string): Promise<any> {
     try {
-      // Import the migration module
       const module = await import(migrationPath);
-
-      // Try different ways to get the migration class
       const MigrationClass = module.default || Object.values(module)[0];
 
       if (!MigrationClass) {
@@ -73,7 +91,7 @@ export class Migrator {
 
       return MigrationClass;
     } catch (error) {
-      console.error(`Error importing migration from ${migrationPath}:`, error);
+      logger.error(`Error importing migration from ${migrationPath}:`, error);
       throw error;
     }
   }
@@ -81,151 +99,167 @@ export class Migrator {
   public async migrate(
     options: { step?: number; pretend?: boolean } = {}
   ): Promise<void> {
-    await this.ensureMigrationsTable();
+    try {
+      await this.ensureMigrationsTable();
 
-    const migrationFiles = await this.getMigrationFiles();
-    const appliedMigrations = await this.getAppliedMigrations();
-    const batch = (await this.getLatestBatch()) + 1;
+      const migrationFiles = await this.getMigrationFiles();
+      const appliedMigrations = await this.getAppliedMigrations();
+      const batch = (await this.getLatestBatch()) + 1;
 
-    const pendingMigrations = migrationFiles
-      .filter((file) => !appliedMigrations.has(file.split('.')[0]))
-      .slice(0, options.step);
+      const pendingMigrations = migrationFiles
+        .filter((file) => !appliedMigrations.has(file.split('.')[0]))
+        .slice(0, options.step);
 
-    if (pendingMigrations.length === 0) {
-      console.log(chalk.yellow('Nothing to migrate.'));
-      return;
-    }
-
-    for (const file of pendingMigrations) {
-      const migrationName = file.split('.')[0];
-      const migrationPath = path.join(this.migrationsPath, file);
-
-      try {
-        if (options.pretend) {
-          console.log(chalk.yellow(`Would run migration: ${migrationName}`));
-          continue;
-        }
-
-        // Import and instantiate the migration
-        const MigrationClass = await this.importMigration(migrationPath);
-        const instance = new MigrationClass(this.db);
-
-        if (typeof instance.up !== 'function') {
-          throw new CoreError({
-            message: `Migration ${migrationName} does not implement 'up' method`,
-          });
-        }
-
-        await instance.up();
-
-        await this.db.connection().query().from('migrations').insert({
-          name: migrationName,
-          batch: batch,
-        });
-
-        console.log(
-          `${chalk.bgGreen.white(' MIGRATED ')} ${chalk.yellow(migrationName)}`
-        );
-      } catch (error) {
-        console.error(`Error running migration ${migrationName}:`, error);
-        this.db
-          .connection()
-          .query()
-          .from('migrations')
-          .where('name', migrationName)
-          .del();
-        throw error;
+      if (pendingMigrations.length === 0) {
+        console.log(chalk.yellow('Nothing to migrate.'));
+        return;
       }
+
+      for (const file of pendingMigrations) {
+        const migrationName = file.split('.')[0];
+        const migrationPath = path.join(this.migrationsPath, file);
+
+        try {
+          if (options.pretend) {
+            console.log(chalk.yellow(`Would run migration: ${migrationName}`));
+            continue;
+          }
+
+          const MigrationClass = await this.importMigration(migrationPath);
+          const instance = new MigrationClass(this.db);
+
+          if (typeof instance.up !== 'function') {
+            throw new CoreError({
+              message: `Migration ${migrationName} does not implement 'up' method`,
+            });
+          }
+
+          await instance.up();
+
+          await this.db.connection().query().from('migrations').insert({
+            name: migrationName,
+            batch: batch,
+          });
+
+          console.log(
+            `${chalk.bgGreen.white(' MIGRATED ')} ${chalk.yellow(migrationName)}`
+          );
+        } catch (error) {
+          logger.error(`Error running migration ${migrationName}:`, error);
+          console.error(`Error running migration ${migrationName}:`, error);
+          await this.db
+            .connection()
+            .query()
+            .from('migrations')
+            .where('name', migrationName)
+            .del();
+          throw error;
+        }
+      }
+    } finally {
+      await this.cleanup();
     }
   }
 
   public async rollback(
     options: { step?: number; batch?: number; pretend?: boolean } = {}
   ): Promise<void> {
-    console.log(chalk.blue('\n Migration rollback\n--------------------'));
-    await this.ensureMigrationsTable();
+    try {
+      console.log(chalk.blue('\n Migration rollback\n--------------------'));
+      await this.ensureMigrationsTable();
 
-    const query = this.db
-      .connection()
-      .query()
-      .from('migrations')
-      .orderBy('id', 'desc');
+      const query = this.db
+        .connection()
+        .query()
+        .from('migrations')
+        .orderBy('id', 'desc');
 
-    if (options.batch) {
-      query.where('batch', options.batch);
-    }
-
-    if (options.step) {
-      query.limit(options.step);
-    }
-
-    const migrations = await query;
-
-    if (migrations.length === 0) {
-      console.log(`\n ${chalk.yellow('Nothing to rollback.')} \n`);
-      return;
-    }
-
-    for (const migration of migrations) {
-      const file = `${migration.name}.ts`;
-      const migrationPath = path.join(this.migrationsPath, file);
-
-      try {
-        if (options.pretend) {
-          console.log(`Would rollback: ${chalk.yellow(migration.name)}`);
-          continue;
-        }
-
-        const MigrationClass = await this.importMigration(migrationPath);
-        const instance = new MigrationClass(this.db);
-
-        if (typeof instance.down !== 'function') {
-          throw new CoreError({
-            message: `Migration ${migration.name} does not implement 'down' method`,
-          });
-        }
-
-        await instance.down();
-
-        await this.db
-          .connection()
-          .query()
-          .from('migrations')
-          .where('id', migration.id)
-          .delete();
-
-        console.log(
-          `\n ${chalk.bgGreen.white(' ROLLED BACK ')} ${chalk.yellow(
-            migration.name
-          )} \n`
-        );
-      } catch (error) {
-        console.error(
-          `${chalk.bgRed.white(' ERROR ')} ${chalk.yellow(
-            `rolling back migration ${migration.name}`
-          )}:`,
-          error
-        );
-        throw error;
+      if (options.batch) {
+        query.where('batch', options.batch);
       }
+
+      if (options.step) {
+        query.limit(options.step);
+      }
+
+      const migrations = await query;
+
+      if (migrations.length === 0) {
+        console.log(`\n ${chalk.yellow('Nothing to rollback.')} \n`);
+        return;
+      }
+
+      for (const migration of migrations) {
+        const file = `${migration.name}.ts`;
+        const migrationPath = path.join(this.migrationsPath, file);
+
+        try {
+          if (options.pretend) {
+            console.log(`Would rollback: ${chalk.yellow(migration.name)}`);
+            continue;
+          }
+
+          const MigrationClass = await this.importMigration(migrationPath);
+          const instance = new MigrationClass(this.db);
+
+          if (typeof instance.down !== 'function') {
+            throw new CoreError({
+              message: `Migration ${migration.name} does not implement 'down' method`,
+            });
+          }
+
+          await instance.down();
+
+          await this.db
+            .connection()
+            .query()
+            .from('migrations')
+            .where('id', migration.id)
+            .delete();
+
+          console.log(
+            `\n ${chalk.bgGreen.white(' ROLLED BACK ')} ${chalk.yellow(
+              migration.name
+            )} \n`
+          );
+        } catch (error) {
+          logger.error(
+            `Error rolling back migration ${migration.name}:`,
+            error
+          );
+          console.error(
+            `${chalk.bgRed.white(' ERROR ')} ${chalk.yellow(
+              `rolling back migration ${migration.name}`
+            )}:`,
+            error
+          );
+          throw error;
+        }
+      }
+    } finally {
+      await this.cleanup();
     }
   }
 
   public async status(): Promise<void> {
-    await this.ensureMigrationsTable();
+    try {
+      await this.ensureMigrationsTable();
 
-    const migrationFiles = await this.getMigrationFiles();
-    const appliedMigrations = await this.getAppliedMigrations();
+      const migrationFiles = await this.getMigrationFiles();
+      const appliedMigrations = await this.getAppliedMigrations();
 
-    console.log(chalk.blue('\nMigration Status\n----------------'));
+      console.log(chalk.blue('\nMigration Status\n----------------'));
 
-    for (const file of migrationFiles) {
-      const migrationName = file.split('.')[0];
-      const status = appliedMigrations.has(migrationName)
-        ? chalk.green('✓')
-        : chalk.red('✗');
-      console.log(`${status} ${chalk.yellow(migrationName)}`);
+      for (const file of migrationFiles) {
+        const migrationName = file.split('.')[0];
+        const status = appliedMigrations.has(migrationName)
+          ? chalk.green('✓')
+          : chalk.red('✗');
+        console.log(`${status} ${chalk.yellow(migrationName)}`);
+      }
+      console.log();
+    } finally {
+      await this.cleanup();
     }
-    console.log();
   }
 }
