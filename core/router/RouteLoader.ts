@@ -4,9 +4,9 @@ import fs from 'fs';
 import type { RouteInfo } from '../types/routes';
 import { PluginLoader } from '../plugins/PluginLoader';
 import type { HttpMethod } from '../types';
-import { ConfigLoader } from '../config';
+import { config } from '../config';
 
-const app = await ConfigLoader.getConfig('app');
+const app = config.get('app');
 
 /**
  * The RouteLoader class is responsible for loading routes

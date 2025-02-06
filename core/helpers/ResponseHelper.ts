@@ -4,7 +4,6 @@ export class ResponseHelper {
   private static instance: ResponseHelper;
   private pluginMethods: Map<string, Function> = new Map();
 
-  // New internal state for response configuration
   private responseConfig: {
     status?: number;
     headers?: Record<string, string>;
@@ -20,25 +19,30 @@ export class ResponseHelper {
   }
 
   private loadPlugins(): void {
-    // Get all response-helper plugins from PluginLoader
     const responseHelperPlugins = PluginLoader.plugins.filter(
       (plugin) => plugin.type === 'response-helper'
     );
 
-    // Load methods from each plugin
+    // Create a context object with the methods plugins might need
+    const pluginContext = {
+      writeHead: this.writeHead.bind(this),
+      end: this.end.bind(this),
+      setContentType: this.setContentType.bind(this),
+    };
+
     for (const plugin of responseHelperPlugins) {
       if (plugin.methods) {
         Object.entries(plugin.methods).forEach(([methodName, method]) => {
           if (methodName in this || this.pluginMethods.has(methodName)) {
             return;
           }
-          // Bind the method to this instance and store it
-          this.pluginMethods.set(methodName, method.bind(this));
+          // Bind both the plugin context and the ResponseHelper instance
+          const boundMethod = method.bind(this, pluginContext);
+          this.pluginMethods.set(methodName, boundMethod);
         });
       }
     }
 
-    // Create proxy methods for type safety and better IDE support
     this.createProxyMethods();
   }
 
@@ -54,36 +58,30 @@ export class ResponseHelper {
     });
   }
 
-  // New method to set headers dynamically
   public writeHead(status: number, headers?: Record<string, string>): this {
     this.responseConfig.status = status;
     this.responseConfig.headers = headers;
     return this;
   }
 
-  // New method to finalize response
   public end(body?: BodyInit): Response {
     const { status = 200, headers = {} } = this.responseConfig;
 
-    // Reset config after creating response
     const finalHeaders = {
       ...headers,
       'Content-Type': headers['Content-Type'] || 'text/plain',
     };
 
-    // Create response with configured status and headers
     const response = new Response(body, {
       status,
       headers: finalHeaders,
     });
 
-    // Reset configuration
     this.responseConfig = {};
 
     return response;
   }
 
-  // Modify existing methods to support dynamic headers
   json(data: any, status: number = 200): Response {
     return this.writeHead(status, { 'Content-Type': 'application/json' }).end(
       JSON.stringify(data)
@@ -94,7 +92,10 @@ export class ResponseHelper {
     return this.writeHead(status, { 'Content-Type': 'text/html' }).end(content);
   }
 
-  // Add a convenience method for setting content type
+  send(body: BodyInit, status: number = 200): Response {
+    return this.writeHead(status).end(body);
+  }
+
   public setContentType(contentType: string): this {
     this.responseConfig.headers = {
       ...this.responseConfig.headers,

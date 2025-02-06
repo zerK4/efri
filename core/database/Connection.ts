@@ -1,4 +1,5 @@
 import { Knex, knex } from 'knex';
+import { CoreError } from '../errors/CoreError';
 
 export class Connection {
   private connection: Knex;
@@ -42,7 +43,9 @@ export class Connection {
           useNullAsDefault: true,
         });
       default:
-        throw new Error(`Unsupported database driver: ${this.config.driver}`);
+        throw new CoreError({
+          message: `Unsupported database driver: ${this.config.driver}`,
+        });
     }
   }
 

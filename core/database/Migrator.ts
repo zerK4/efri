@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import { DatabaseManager } from './DBManager';
 import chalk from 'chalk';
+import { CoreError } from '../errors/CoreError';
 
 export class Migrator {
   private migrationsPath: string;
@@ -65,7 +66,9 @@ export class Migrator {
       const MigrationClass = module.default || Object.values(module)[0];
 
       if (!MigrationClass) {
-        throw new Error(`No migration class found in ${migrationPath}`);
+        throw new CoreError({
+          message: `No migration class found in ${migrationPath}`,
+        });
       }
 
       return MigrationClass;
@@ -108,9 +111,9 @@ export class Migrator {
         const instance = new MigrationClass(this.db);
 
         if (typeof instance.up !== 'function') {
-          throw new Error(
-            `Migration ${migrationName} does not implement 'up' method`
-          );
+          throw new CoreError({
+            message: `Migration ${migrationName} does not implement 'up' method`,
+          });
         }
 
         await instance.up();
@@ -177,9 +180,9 @@ export class Migrator {
         const instance = new MigrationClass(this.db);
 
         if (typeof instance.down !== 'function') {
-          throw new Error(
-            `Migration ${migration.name} does not implement 'down' method`
-          );
+          throw new CoreError({
+            message: `Migration ${migration.name} does not implement 'down' method`,
+          });
         }
 
         await instance.down();

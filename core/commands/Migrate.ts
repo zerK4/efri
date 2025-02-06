@@ -1,9 +1,7 @@
 import { Command } from '../cli/Command';
-import { ConfigLoader } from '../config';
+import { config } from '../config/config/CoreConfig';
 import { DatabaseManager } from '../database/DBManager';
 import { Migrator } from '../database/Migrator';
-
-const databaseConfig = await ConfigLoader.getConfig('connections');
 
 export default class Migrate extends Command {
   name = 'migrate';
@@ -14,7 +12,7 @@ export default class Migrate extends Command {
     args: string[];
     options: Record<string, boolean | string>;
   }): Promise<void> {
-    const db = new DatabaseManager(databaseConfig!);
+    const db = new DatabaseManager(config.get('connections'));
     const migrator = new Migrator(db, context.options['path'] as string);
 
     try {

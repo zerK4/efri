@@ -1,10 +1,10 @@
-import { ConfigLoader } from '../config';
+import chalk from 'chalk';
 import { Command } from '../cli/Command';
+import { config } from '../config';
 import { DatabaseManager } from '../database/DBManager';
 import { Migrator } from '../database/Migrator';
-import chalk from 'chalk';
 
-const databaseConfig = await ConfigLoader.getConfig('connections');
+const databaseConfig = config.get('connections');
 
 export default class MigrateStatus extends Command {
   name = 'migrate:status';

@@ -1,4 +1,5 @@
-import { middlewareStack } from '../middlewares';
+import { CoreError } from '../errors/CoreError';
+import { MiddlewareStack, middlewareStack } from '../middlewares';
 import type { MiddlewareHandler } from '../types';
 import type { GateFunction } from '../types/gate';
 import type { User } from '../types/model';
@@ -27,7 +28,9 @@ export class CoreGate {
     const gate = this.gates.get(ability);
 
     if (!gate) {
-      throw new Error(`Gate [${ability}] not defined.`);
+      throw new CoreError({
+        message: `Gate [${ability}] not defined.`,
+      });
     }
 
     return await gate(this.defaultUser, ...args);

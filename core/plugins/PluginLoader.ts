@@ -1,9 +1,10 @@
 import { readdir } from 'fs/promises';
 import { join, extname } from 'path';
 import type { ICorePlugin } from '../types/plugin';
-import { ConfigLoader } from '../config';
+import { config } from '../config';
+import fs from 'fs';
 
-const app = await ConfigLoader.getConfig('app');
+const app = config.get('app');
 
 /**
  * The PluginLoader class is responsible for discovering and registering plugins.
@@ -11,6 +12,7 @@ const app = await ConfigLoader.getConfig('app');
 export class PluginLoader {
   private static instance: PluginLoader;
   public static plugins: ICorePlugin[] = [];
+  private static packageRoot = join(__dirname, '../..'); // Path to the package root
 
   /**
    * @param plugin The plugin to register
@@ -30,67 +32,77 @@ export class PluginLoader {
   }
 
   /**
-   * Discover plugins in the src/plugins directory
+   * Discover plugins in both the package and project directories.
    */
   static async discoverPlugins() {
-    const basePath = process.cwd();
-    const pluginsDir = join(
-      basePath,
+    /**
+     * Load package plugins (silently skip if directory doesn't exist)
+     */
+    const packagePluginsDir = join(this.packageRoot, 'core/plugins/logger');
+    if (await this.directoryExists(packagePluginsDir)) {
+      await this.loadPluginsFromPath(packagePluginsDir);
+    }
+
+    /**
+     * Load project plugins (log warning if directory doesn't exist)
+     */
+    const projectPluginsDir = join(
+      process.cwd(),
       (app && app['env'] === 'production') ||
         process.env.NODE_ENV === 'production'
         ? 'dist/plugins'
         : 'src/plugins'
     );
-    let files: string[];
+    if (await this.directoryExists(projectPluginsDir)) {
+      await this.loadPluginsFromPath(projectPluginsDir);
+    } else {
+      console.warn(
+        `No plugins directory found in project. Create ${projectPluginsDir} to add custom plugins.`
+      );
+    }
+  }
 
-    /**
-     * Recursively find all .ts files in the plugins directory and subdirectories
-     */
-    const getFilesRecursively = async (dir: string): Promise<string[]> => {
-      let result: string[] = [];
-      const list = await readdir(dir, { withFileTypes: true });
+  /**
+   * Check if a directory exists.
+   * @param dir The directory path to check.
+   * @returns A boolean indicating whether the directory exists.
+   */
+  private static async directoryExists(dir: string): Promise<boolean> {
+    try {
+      await fs.promises.access(dir);
+      return true;
+    } catch {
+      return false;
+    }
+  }
 
-      for (const direct of list) {
-        const fullPath = join(dir, direct.name);
+  /**
+   * Load plugins from a given directory path.
+   * @param basePath The base directory path to load plugins from.
+   */
+  private static async loadPluginsFromPath(basePath: string): Promise<void> {
+    const loadPluginsRec = async (dir: string) => {
+      const files = await readdir(dir, { withFileTypes: true });
 
-        if (direct.isDirectory()) {
-          result = [...result, ...(await getFilesRecursively(fullPath))];
+      for (const file of files) {
+        const fullPath = join(dir, file.name);
+
+        if (file.isDirectory()) {
+          await loadPluginsRec(fullPath); // Recursively load plugins from subdirectories
         } else if (
-          extname(direct.name) === '.ts' ||
-          extname(direct.name) === '.tsx'
+          extname(file.name) === '.ts' ||
+          extname(file.name) === '.tsx'
         ) {
-          result.push(fullPath);
+          try {
+            const pluginPath = `file://${fullPath}`;
+            await import(pluginPath);
+          } catch (err) {
+            console.error(`Failed to import plugin from ${fullPath}:`, err);
+          }
         }
       }
-      return result;
     };
 
-    try {
-      files = await getFilesRecursively(pluginsDir);
-    } catch (err) {
-      console.warn(`Plugins directory not found at ${pluginsDir}`);
-      return;
-    }
-
-    /**
-     * Register the plugins
-     */
-    for (const file of files) {
-      const pluginPath = `file://${file}`;
-      try {
-        const pluginModule = await import(pluginPath);
-        const plugin = pluginModule.default;
-
-        this.registerPlugin({
-          type: plugin?.type,
-          name: plugin?.name,
-          routes: await plugin?.routes,
-          init: plugin?.init,
-          methods: plugin?.methods,
-        });
-      } catch (err) {
-        console.error(`Failed to import plugin from ${file}:`, err);
-      }
-    }
+    await loadPluginsRec(basePath);
   }
 }

@@ -2,6 +2,7 @@ import { Command } from '../cli/Command';
 import chalk from 'chalk';
 import { mkdirSync, writeFileSync } from 'fs';
 import { join } from 'path';
+import { migration } from '../bootstrap/migration';
 
 export default class MakeMigration extends Command {
   name = 'make:migration';
@@ -13,34 +14,28 @@ export default class MakeMigration extends Command {
     options: Record<string, boolean>;
   }): Promise<void> {
     const [name] = context.args;
-    const cDir = join(process.cwd(), 'src', 'database/migrations');
 
+    // Validate that a name is provided
+    if (!name) {
+      console.error(chalk.red('❌ Error: A migration name must be provided.'));
+      return;
+    }
+
+    const cDir = join(process.cwd(), 'src', 'database/migrations');
     mkdirSync(cDir, { recursive: true });
 
     const timestamp = new Date().getTime();
 
-    const [first, second] = name.split('_');
-    const finalName = `${first.charAt(0).toUpperCase()}${first.slice(1)}${second
-      .charAt(0)
-      .toUpperCase()}${second.slice(1)}Table`;
+    // Use the name as-is if there's no underscore
+    const finalName = name.includes('_')
+      ? name
+          .split('_')
+          .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+          .join('')
+      : name.charAt(0).toUpperCase() + name.slice(1);
 
     const filePath = join(cDir, `${timestamp}_${name}.ts`);
-    const content = `
-import { Migration } from "efri/core/config/database/Migration";
-
-export class ${finalName} extends Migration {
-  async up(): Promise<void> {
-    await this.schema.create("${second}", (table) => {
-      table.increments("id");
-      table.timestamps(true, true);
-    });
-  }
-
-  async down(): Promise<void> {
-    await this.schema.dropIfExists("users");
-  }
-}
-`;
+    const content = migration(finalName, name);
 
     writeFileSync(filePath, content);
     console.log(

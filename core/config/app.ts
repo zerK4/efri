@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { CoreError } from '../errors/CoreError';
 
 const appSchema = z
   .object({
@@ -53,11 +54,12 @@ const appSchema = z
 const validateEnv = () => {
   const parsed = appSchema.safeParse(process.env);
   if (!parsed.success) {
-    throw new Error(
-      `Invalid environment variables:\n${parsed.error.issues
+    throw new CoreError({
+      message: `Invalid environment variables:\n${parsed.error.issues
         .map((issue) => `- ${issue.path.join('.')}: ${issue.message}`)
-        .join('\n')}`
-    );
+        .join('\n')}`,
+      cause: parsed.error,
+    });
   }
   return parsed.data;
 };

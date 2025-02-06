@@ -1,2 +1,2 @@
 export * from './app';
-export * from './config/ConfigLoader';
+export * from './config';

@@ -1,9 +1,9 @@
 import { Command } from '../cli/Command';
-import { ConfigLoader } from '../config';
+import { config } from '../config/';
 import { DatabaseManager } from '../database/DBManager';
 import { Migrator } from '../database/Migrator';
 
-const databaseConfig = await ConfigLoader.getConfig('connections');
+const databaseConfig = config.get('connections');
 
 export default class MigrateRollback extends Command {
   name = 'migrate:rollback';

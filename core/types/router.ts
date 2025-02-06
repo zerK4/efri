@@ -1,9 +1,10 @@
 import type { ResponseHelper } from '../helpers/ResponseHelper';
+import type { RequestWrapper } from '../router/RequestWrapper';
 
 export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
 
 export type ControllerMethod = (context: {
-  req: Request;
+  req: RequestWrapper;
   res: ResponseHelper;
   params: Record<string, string>;
   query: Record<string, any>;
@@ -22,17 +23,21 @@ export interface Route {
 }
 
 export interface RouterContext<
-  Req extends Request = Request,
-  Res extends ResponseHelper = ResponseHelper,
+  T extends {
+    query?: Record<string, any>;
+    params?: Record<string, string>;
+    req?: RequestWrapper;
+    res?: ResponseHelper;
+  } = {},
 > {
-  req: Req;
-  res: Res;
-  params: Record<string, string>;
-  query: Record<string, any>;
+  req: T extends { req: infer R } ? R : RequestWrapper;
+  res: T extends { res: infer R } ? R : ResponseHelper;
+  params: T extends { params: infer P } ? P : Record<string, string>;
+  query: T extends { query: infer Q } ? Q : Record<string, any>;
 }
 
 export interface LifecycleContext {
-  req: Request;
+  req: RequestWrapper;
   res: ResponseHelper;
   params: Record<string, string>;
   query: Record<string, any>;

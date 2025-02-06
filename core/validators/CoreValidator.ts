@@ -1,3 +1,4 @@
+import { CoreError } from '../errors/CoreError';
 import { middlewareStack } from '../middlewares';
 import type { MiddlewareHandler } from '../types';
 import { ZodSchema } from 'zod';
@@ -18,7 +19,9 @@ export class CoreValidator {
   validate(name: string, data: unknown): { success: boolean; errors?: any } {
     const schema = this.validators.get(name);
     if (!schema) {
-      throw new Error(`Validator [${name}] not defined.`);
+      throw new CoreError({
+        message: `Validator [${name}] not defined.`,
+      });
     }
 
     const result = schema.safeParse(data);
@@ -26,9 +29,16 @@ export class CoreValidator {
       return { success: true };
     }
 
+    const extractedErrors = result.error?.errors.map((err) => {
+      return {
+        ...err,
+        path: err.path.join('.'),
+      };
+    });
+
     return {
       success: false,
-      errors: result.error.format(),
+      errors: extractedErrors,
     };
   }
 
@@ -51,20 +61,27 @@ export class CoreValidator {
       ): Promise<Response> => {
         const schema = this.validators.get(name);
         if (!schema) {
-          throw new Error(`Validator [${name}] not defined.`);
+          throw new CoreError({
+            message: `Validator [${name}] not defined.`,
+          });
         }
 
         try {
           const body = await req.json();
           const result = schema.safeParse(body);
+
+          const extractedErrors = result.error?.errors.map((err) => {
+            return {
+              ...err,
+              path: err.path.join('.'),
+            };
+          });
+
           if (!result.success) {
-            return new Response(
-              JSON.stringify({ errors: result.error.format() }),
-              {
-                status: 422,
-                headers: { 'Content-Type': 'application/json' },
-              }
-            );
+            return new Response(JSON.stringify({ errors: extractedErrors }), {
+              status: 422,
+              headers: { 'Content-Type': 'application/json' },
+            });
           }
           return next();
         } catch (error) {

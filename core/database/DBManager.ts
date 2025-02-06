@@ -1,3 +1,5 @@
+import { config } from '../config';
+import { CoreError } from '../errors/CoreError';
 import type { DatabaseConfig } from '../types/database';
 import { Connection } from './Connection';
 
@@ -14,12 +16,12 @@ export class DatabaseManager {
   public connection(name?: string): Connection {
     const connectionName = name || this.defaultConnection;
 
-    if (!this.connections.has(connectionName)) {
+    if (!config.has(connectionName)) {
       const connectionConfig = this.config.connections[connectionName];
       if (!connectionConfig) {
-        throw new Error(
-          `Database connection '${connectionName}' not configured`
-        );
+        throw new CoreError({
+          message: `Database connection '${connectionName}' not configured`,
+        });
       }
       this.connections.set(connectionName, new Connection(connectionConfig));
     }

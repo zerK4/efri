@@ -1,9 +1,10 @@
 import type { Knex } from 'knex';
+import { config } from '../config/config/';
 import { DatabaseManager } from '../database/DBManager';
 import { ModelQuery } from './ModelQuery';
-import { ConfigLoader } from '../config/config/ConfigLoader';
+import { CoreError } from '../errors/CoreError';
 
-const databaseConfig = await ConfigLoader.getConfig('connections');
+const databaseConfig = config.get('connections');
 
 export type ModelConstructor<T> = new () => Model<T>;
 
@@ -23,7 +24,9 @@ export abstract class Model<T> {
   constructor() {
     if (!Model.connection) {
       if (!databaseConfig) {
-        throw new Error('Database config not found');
+        throw new CoreError({
+          message: 'Database config not found',
+        });
       }
 
       Model.connection = new DatabaseManager(databaseConfig);

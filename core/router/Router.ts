@@ -1,6 +1,9 @@
+import { CoreError } from '../errors/CoreError';
 import { ResponseHelper } from '../helpers/ResponseHelper';
+import { logger } from '../logger';
 import { MiddlewareStack } from '../middlewares/Middleware';
 import type { HttpMethod, Route, RouteHandler } from '../types/router';
+import { RequestWrapper } from './RequestWrapper';
 
 export class Router {
   private static instance: Router;
@@ -98,9 +101,46 @@ export class Router {
     return this;
   }
 
+  private async parseRequestBody(req: RequestWrapper): Promise<void> {
+    try {
+      const contentType = req.headers.get('content-type');
+
+      if (contentType?.includes('application/json')) {
+        const text = await req.clone().text();
+        req.body = text ? JSON.parse(text) : null;
+        return;
+      }
+
+      if (contentType?.includes('application/x-www-form-urlencoded')) {
+        const formData = await req.clone().formData();
+        const body: Record<string, any> = {};
+        formData.forEach((value, key) => {
+          body[key] = value;
+        });
+        req.body = body;
+        return;
+      }
+
+      if (contentType?.includes('multipart/form-data')) {
+        const formData = await req.clone().formData();
+        const body: Record<string, any> = {};
+        formData.forEach((value, key) => {
+          body[key] = value;
+        });
+        req.body = body;
+        return;
+      }
+
+      req.body = null;
+    } catch (error) {
+      console.error('Error parsing request body:', error);
+      req.body = null;
+    }
+  }
+
   private async invokeControllerMethod(
     handler: RouteHandler,
-    req: Request,
+    req: RequestWrapper,
     params: Record<string, string>,
     query: Record<string, any>,
     res: ResponseHelper
@@ -112,7 +152,6 @@ export class Router {
 
       return method({ req, res, params, query });
     }
-    // If handler is a direct function
     return handler({ req, res, params, query });
   }
 
@@ -169,7 +208,7 @@ export class Router {
 
   private async executeMiddleware(
     middlewareNames: string[],
-    req: Request,
+    req: RequestWrapper,
     params: Record<string, string>,
     query: Record<string, any>,
     route: RouteHandler,
@@ -184,18 +223,23 @@ export class Router {
 
       const middleware = middlewareStack.get(middlewareNames[index]);
       if (!middleware) {
-        throw new Error(`Middleware ${middlewareNames[index]} not found`);
+        logger.error(`Middleware ${middlewareNames[index]} not found`);
+        throw new CoreError({
+          message: `Middleware ${middlewareNames[index]} not found`,
+        });
       }
 
-      return middleware.handle(req, () => executeMiddlewareChain(index + 1));
+      return middleware.handle(req as unknown as Request, () =>
+        executeMiddlewareChain(index + 1)
+      );
     };
 
     return executeMiddlewareChain(0);
   }
 
-  public async handleRequest(req: Request): Promise<Response> {
+  public async handleRequest(originalReq: Request): Promise<Response> {
+    const req = new RequestWrapper(originalReq);
     const res = ResponseHelper.getInstance();
-
     try {
       const url = new URL(req.url);
       const match = this.matchRoute(req.method, url.pathname);
@@ -205,6 +249,11 @@ export class Router {
       }
 
       const { route, params, query } = match;
+
+      // Parse request body for methods that typically include one
+      if (['POST', 'PUT', 'PATCH'].includes(req.method)) {
+        await this.parseRequestBody(req);
+      }
 
       if (route.middleware?.length) {
         return await this.executeMiddleware(
@@ -225,7 +274,6 @@ export class Router {
         res
       );
     } catch (error) {
-      console.error('Router error:', error); // Add logging
       return res.json({ error: 'Internal Server Error' }, 500);
     }
   }

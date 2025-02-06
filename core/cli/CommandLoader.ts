@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { Command } from './Command';
 import chalk from 'chalk';
 import type { CommandMetadata, CommandSource } from '../types';
+import { logger, type CoreLogger } from '../logger/CoreLogger';
 
 const CommandSchema = z.object({
   name: z.string().min(1),
@@ -15,12 +16,12 @@ const CommandSchema = z.object({
 export class CommandLoader {
   private static commands: Map<string, CommandMetadata> = new Map();
   private static customCommandPaths: string[] = [];
-  private static logger: Console = console;
+  private static logger: CoreLogger = logger;
   private static plugins: Array<(loader: typeof CommandLoader) => void> = [];
 
   // Dependency injection and configuration
   static configure(options: {
-    logger?: Console;
+    logger?: CoreLogger;
     plugins?: Array<(loader: typeof CommandLoader) => void>;
   }) {
     if (options.logger) this.logger = options.logger;
