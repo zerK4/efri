@@ -13,12 +13,34 @@ export class RouteTrie {
 
   addRoute(method: HttpMethod, path: string, route: Route) {
     if (!path.startsWith('/')) {
-      throw new Error('Path must start with /');
+      path = `/${path}`;
     }
 
     const parts = path.split('/').filter((part) => part !== '');
+    const hasParams = parts.some(
+      (part) => part.startsWith('{') && part.endsWith('}')
+    );
     let node = this.root;
 
+    // Handle exact routes first (no parameters)
+    if (!hasParams) {
+      for (const part of parts) {
+        if (!node.children[part]) {
+          node.children[part] = new RouteTrieNode();
+        }
+        node = node.children[part];
+      }
+
+      if (node.routes[method]) {
+        throw new CoreError({
+          message: `Route already exists for ${method} ${path}`,
+        });
+      }
+      node.routes[method] = route;
+      return;
+    }
+
+    // Handle parameterized routes
     for (const part of parts) {
       if (part === '*') {
         node.isWildcard = true;
@@ -29,10 +51,14 @@ export class RouteTrie {
       } else if (part.startsWith('{') && part.endsWith('}')) {
         const paramName = part.slice(1, -1);
         if (!paramName) {
-          throw new Error('Empty parameter name in route');
+          throw new CoreError({
+            message: 'Empty parameter name in route',
+          });
         }
         if (!/^[a-zA-Z][a-zA-Z0-9_]*$/.test(paramName)) {
-          throw new Error(`Invalid parameter name: ${paramName}`);
+          throw new CoreError({
+            message: `Invalid parameter name: ${paramName}`,
+          });
         }
         node.paramName = paramName;
         if (!node.children['*']) {
@@ -48,7 +74,9 @@ export class RouteTrie {
     }
 
     if (node.routes[method]) {
-      throw new Error(`Route already exists for ${method} ${path}`);
+      throw new CoreError({
+        message: `Route already exists for ${method} ${path}`,
+      });
     }
     node.routes[method] = route;
   }
@@ -66,38 +94,37 @@ export class RouteTrie {
     const parts = path.split('/').filter((part) => part !== '');
     let node = this.root;
     const params: Record<string, string> = {};
-    let wildcardMatch: {
-      node: RouteTrieNode;
-      params: Record<string, string>;
-    } | null = null;
+
+    let exactMatchNode = this.root;
+    let hasExactPath = true;
 
     for (const part of parts) {
-      // Check for catch-all route
+      if (exactMatchNode.children[part]) {
+        exactMatchNode = exactMatchNode.children[part];
+      } else {
+        hasExactPath = false;
+        break;
+      }
+    }
+
+    if (hasExactPath && exactMatchNode.routes[method]) {
+      return { route: exactMatchNode.routes[method]!, params };
+    }
+
+    // Fall back to parameterized route matching
+    for (const part of parts) {
       if (node.isWildcard) {
-        wildcardMatch = {
-          node,
-          params: {
-            ...params,
-            '*': parts.slice(parts.indexOf(part)).join('/'),
-          },
-        };
+        params['*'] = parts.slice(parts.indexOf(part)).join('/');
+        break;
       }
 
-      // Try exact match first
       if (node.children[part]) {
         node = node.children[part];
       } else if (node.paramName && node.children['*']) {
-        // Try parameter match
         params[node.paramName] = part;
         node = node.children['*'];
       } else {
-        // Return wildcard match if no other match found
-        return wildcardMatch
-          ? {
-              route: wildcardMatch.node.routes[method]!,
-              params: wildcardMatch.params,
-            }
-          : null;
+        return null;
       }
     }
 

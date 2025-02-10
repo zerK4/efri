@@ -3,6 +3,8 @@ import { logger } from '../logger';
 export class CoreError extends Error {
   public readonly name: string = 'CoreError';
   public readonly httpCode: number;
+  public readonly code: string;
+  public readonly details?: string;
   public readonly timestamp: string;
   public readonly path: string;
   public readonly method: string;
@@ -14,34 +16,36 @@ export class CoreError extends Error {
   constructor({
     message,
     httpCode = 500,
+    code = 'UNKNOWN_ERROR',
+    details,
     path = '',
     method = '',
     cause,
   }: {
     message: string;
     httpCode?: number;
+    code?: string;
+    details?: string;
     path?: string;
     method?: string;
     cause?: Error;
   }) {
     super(message);
 
-    // Ensure prototype chain is setup correctly
     Object.setPrototypeOf(this, new.target.prototype);
 
-    // Capture stack trace
     Error.captureStackTrace(this, this.constructor);
 
     this.httpCode = httpCode;
+    this.code = code;
+    this.details = details;
     this.timestamp = new Date().toISOString();
     this.path = path;
     this.method = method;
 
-    // Parse stack trace to get file information
     const stackLines = this.stack?.split('\n') || [];
     const errorLine = stackLines[1]; // First line after error message
 
-    // Extract file path and line information using regex
     const stackInfo =
       errorLine?.match(/at.+\((.+):(\d+):(\d+)\)/) ||
       errorLine?.match(/at\s+(.+):(\d+):(\d+)/);
@@ -54,7 +58,6 @@ export class CoreError extends Error {
       this.filePath = 'unknown';
     }
 
-    // If there's a causing error, append its stack to ours
     if (cause) {
       this.stack = `${this.stack}\nCaused by: ${cause.stack}`;
     }
@@ -67,6 +70,8 @@ export class CoreError extends Error {
       name: this.name,
       message: this.message,
       httpCode: this.httpCode,
+      code: this.code,
+      details: this.details,
       timestamp: this.timestamp,
       path: this.path,
       method: this.method,
@@ -77,7 +82,6 @@ export class CoreError extends Error {
     };
   }
 
-  // Helper method to get just the filename without the full path
   public getFileName(): string {
     return this.filePath.split(/[/\\]/).pop() || 'unknown';
   }

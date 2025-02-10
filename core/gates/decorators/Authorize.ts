@@ -1,4 +1,4 @@
-import type { RouterContext } from '../types';
+import type { RouterContext } from '../../types';
 import { gate } from '../CoreGate';
 
 export function Authorized(ability: string) {

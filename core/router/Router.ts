@@ -60,9 +60,9 @@ export class Router {
     }
 
     // Early return if route exists
-    if (this.routeTrie.findRoute(method, fullPath)) {
-      return;
-    }
+    // if (this.routeTrie.findRoute(method, fullPath)) {
+    //   return;
+    // }
 
     const allMiddleware = [
       ...middleware,
@@ -246,6 +246,10 @@ export class Router {
       );
 
       if (!match) {
+        logger.error('The route was not found', {
+          url: req.url,
+          method: req.method,
+        });
         return res.json({ error: 'The route was not found' }, 404);
       }
 
@@ -278,6 +282,9 @@ export class Router {
         res
       );
     } catch (error) {
+      logger.error('Internal server error', {
+        error,
+      });
       return res.json({ error: 'Internal Server Error' }, 500);
     }
   }
