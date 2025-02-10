@@ -5,7 +5,7 @@ import { CommandLoader } from './cli/CommandLoader';
 import { PluginLoader } from './plugins/PluginLoader';
 import { GateLoader } from './gates/GateLoader';
 import { ValidatorLoader } from './validators/ValidatorLoader';
-import { MiddlewareLoader } from './middlewares/middlewareLoader';
+import { MiddlewareLoader } from './middlewares/MiddlewareLoader';
 import path from 'path';
 import { logger } from './logger';
 
