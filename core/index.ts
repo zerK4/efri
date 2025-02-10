@@ -5,7 +5,7 @@ import { CommandLoader } from './cli/CommandLoader';
 import { app } from './config/app';
 import { ConfigLoader } from './config/config/ConfigLoader';
 import { GateLoader } from './gates';
-import { MiddlewareLoader } from './middlewares/MiddlewareLoader';
+import { MiddlewareLoader } from './middlewares/middlewareLoader';
 import { loadModels } from './models/modelRegistrar';
 import { PluginLoader } from './plugins/PluginLoader';
 import RouteLoader from './router/RouteLoader';
