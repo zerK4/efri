@@ -3,6 +3,7 @@ import { Command } from '../cli/Command';
 import { config } from '../config';
 import { DatabaseManager } from '../database/DBManager';
 import { Migrator } from '../database/Migrator';
+import { logger } from '../logger';
 
 const databaseConfig = config.get('connections');
 
@@ -23,7 +24,7 @@ export default class MigrateStatus extends Command {
     try {
       await migrator.status();
     } catch (error) {
-      console.error(chalk.red('Evidentiate the error:'), error);
+      logger.error(chalk.red('Evidentiate the error:'), error);
       process.exit(1);
     } finally {
       await db.disconnect();

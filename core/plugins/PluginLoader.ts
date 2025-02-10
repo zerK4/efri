@@ -3,6 +3,7 @@ import { join, extname } from 'path';
 import type { ICorePlugin } from '../types/plugin';
 import { config } from '../config';
 import fs from 'fs';
+import { logger } from '../logger';
 
 const app = config.get('app');
 
@@ -97,7 +98,7 @@ export class PluginLoader {
             const pluginPath = `file://${fullPath}`;
             await import(pluginPath);
           } catch (err) {
-            console.error(`Failed to import plugin from ${fullPath}:`, err);
+            logger.error(`Failed to import plugin from ${fullPath}:`, err);
           }
         }
       }

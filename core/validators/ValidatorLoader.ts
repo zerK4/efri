@@ -1,5 +1,6 @@
 import fs from 'fs';
 import { join } from 'path';
+import { logger } from '../logger';
 
 /**
  * The ValidatorLoader class is responsible for loading validators
@@ -53,7 +54,7 @@ export class ValidatorLoader {
           try {
             await import(fullPath);
           } catch (error) {
-            console.error(`Failed to load validators from ${file}:`, error);
+            logger.error(`Failed to load validators from ${file}:`, error);
           }
         }
       }

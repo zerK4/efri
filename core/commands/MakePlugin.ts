@@ -7,6 +7,7 @@ import {
   routePlugin,
 } from '../bootstrap/plugin';
 import { extractPathInfo } from '../cli/utils';
+import { logger } from '../logger';
 
 export default class MakePlugin extends Command {
   name = 'make:plugin';
@@ -39,7 +40,7 @@ export default class MakePlugin extends Command {
     const [pluginPath] = context.args;
 
     if (!pluginPath) {
-      console.error(chalk.red('Error: Plugin path | name is required'));
+      logger.error(chalk.red('Error: Plugin path | name is required'));
       console.log(
         chalk.dim(
           'Usage: bun efri make:plugin <path/to/plugin> | <plugin-name>'
@@ -78,7 +79,7 @@ export default class MakePlugin extends Command {
           `\n  ${chalk.dim('└─')} ${chalk.green(pathInfo.name + '.ts')}\n`
       );
     } catch (error) {
-      console.error(
+      logger.error(
         `\n${chalk.red('❌ Error:')} Failed to create plugin:\n`,
         error instanceof Error ? error.message : error
       );

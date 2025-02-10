@@ -12,6 +12,7 @@ import RouteLoader from './router/RouteLoader';
 import { Router } from './router/Router';
 import { ValidatorLoader } from './validators/ValidatorLoader';
 import { CoreError } from './errors/CoreError';
+import { logger } from './logger';
 
 export class Efri {
   private static instance: Efri;
@@ -71,7 +72,7 @@ export class Efri {
       );
       console.log(chalk.dim('-------------------------------------'));
     } catch (error) {
-      console.error('Initialization failed:', error);
+      logger.error('Initialization failed:', error);
       throw new CoreError({
         message: 'Initialization failed',
       });
@@ -90,7 +91,7 @@ export class Efri {
     try {
       await loaderFunction();
     } catch (error) {
-      console.error(`${loaderName} failed to load:`, error);
+      logger.error(`${loaderName} failed to load:`, error);
       throw error; // Rethrow to stop the initialization process
     }
   }
@@ -101,7 +102,7 @@ export class Efri {
         port,
         fetch: (req, server) => this.router.handleRequest(req, server),
         error: (err) => {
-          console.error(err);
+          logger.error(err);
           return new Response(err.message, {
             status: 500,
             headers: { 'Content-Type': 'text/plain' },
@@ -122,7 +123,7 @@ export class Efri {
       if (error.code === 'EADDRINUSE') {
         throw error;
       }
-      console.error(error);
+      logger.error(error);
       process.exit(1);
     }
   }
@@ -147,7 +148,7 @@ export class Efri {
       }
     }
 
-    console.error(
+    logger.error(
       `${chalk.red('✖')} Failed to find an available port after ${this.maxPortAttempts} attempts`
     );
     process.exit(1);

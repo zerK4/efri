@@ -179,7 +179,7 @@ export class Router {
 
       req.body = null;
     } catch (error) {
-      console.error('Error parsing request body:', error);
+      logger.error('Error parsing request body:', error);
       req.body = null;
     }
   }

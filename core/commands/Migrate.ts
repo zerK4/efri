@@ -2,6 +2,7 @@ import { Command } from '../cli/Command';
 import { config } from '../config/config/CoreConfig';
 import { DatabaseManager } from '../database/DBManager';
 import { Migrator } from '../database/Migrator';
+import { logger } from '../logger';
 
 export default class Migrate extends Command {
   name = 'migrate';
@@ -23,7 +24,7 @@ export default class Migrate extends Command {
         pretend: (context.options['pretend'] as boolean) || false,
       });
     } catch (error) {
-      console.error('Migration failed:', error);
+      logger.error('Migration failed:', error);
       process.exit(1);
     } finally {
       await db.disconnect();

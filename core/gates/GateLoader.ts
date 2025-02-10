@@ -1,5 +1,6 @@
 import fs from 'fs';
 import { join } from 'path';
+import { logger } from '../logger';
 
 /**
  * The GateLoader class is responsible for loading gates
@@ -51,7 +52,7 @@ export class GateLoader {
           try {
             await import(fullPath);
           } catch (error) {
-            console.error(`Failed to load gates from ${file}:`, error);
+            logger.error(`Failed to load gates from ${file}:`, error);
           }
         }
       }

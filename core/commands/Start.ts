@@ -2,6 +2,7 @@ import { Command } from '../cli/Command';
 import chalk from 'chalk';
 import { spawn } from 'child_process';
 import { resolve } from 'path';
+import { logger } from '../logger';
 
 export default class StartServer extends Command {
   name = 'start';
@@ -28,18 +29,18 @@ export default class StartServer extends Command {
       );
 
       serverProcess.on('error', (error) => {
-        console.error(chalk.red('❌ Server failed to start:'), error);
+        logger.error(chalk.red('❌ Server failed to start:'), error);
       });
 
       serverProcess.on('close', (code) => {
         if (code === 0) {
           console.log(chalk.green('✅ Server stopped successfully.'));
         } else {
-          console.error(chalk.red(`❌ Server exited with code ${code}`));
+          logger.error(chalk.red(`❌ Server exited with code ${code}`));
         }
       });
     } catch (error) {
-      console.error(chalk.red('❌ Server failed to start:'), error);
+      logger.error(chalk.red('❌ Server failed to start:'), error);
     }
   }
 }

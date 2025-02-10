@@ -1,6 +1,7 @@
 import type { ZodSchema } from 'zod';
 import { validator } from '../validators/CoreValidator';
 import type { Server } from 'bun'; // Import the Server type from Bun
+import { logger } from '../logger';
 
 export interface ExtendedRequest extends Request {
   bytes(): Promise<Uint8Array>;
@@ -244,7 +245,7 @@ export class RequestWrapper implements ExtendedRequest {
     if (typeof schema === 'string') {
       validatorSchema = validator.get(schema) as ZodSchema<T>;
       if (!validatorSchema) {
-        console.error(`Validator [${schema}] not defined.`);
+        logger.error(`Validator [${schema}] not defined.`);
         throw new Response(
           JSON.stringify({ error: `Validator [${schema}] not defined.` }),
           { status: 500, headers: { 'Content-Type': 'application/json' } }
@@ -272,7 +273,7 @@ export class RequestWrapper implements ExtendedRequest {
 
       return result;
     } catch (error) {
-      console.error('Validation error:', error); // Debugging log
+      logger.error('Validation error:', error); // Debugging log
       throw new Response(JSON.stringify({ error: 'Invalid JSON payload' }), {
         status: 400,
         headers: { 'Content-Type': 'application/json' },

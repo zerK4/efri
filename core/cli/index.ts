@@ -3,6 +3,7 @@
 import chalk from 'chalk';
 import figlet from 'figlet';
 import { CommandLoader } from './CommandLoader';
+import { logger } from '../logger';
 
 async function main() {
   // Load commands before processing
@@ -19,7 +20,7 @@ async function main() {
   const command = CommandLoader.getCommand(commandName);
 
   if (!command) {
-    console.error(
+    logger.error(
       `\n  ${chalk.yellow('⚠')}  Command "${commandName}" not found\n`
     );
     displayAvailableCommands();
@@ -112,6 +113,6 @@ function parseOptions(args: string[]): Record<string, boolean> {
 }
 
 main().catch((error) => {
-  console.error(chalk.red('CLI Execution Error:'), error);
+  logger.error(chalk.red('CLI Execution Error:'), error);
   process.exit(1);
 });

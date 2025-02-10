@@ -1,5 +1,6 @@
 import fs from 'fs';
 import { join } from 'path';
+import { logger } from '../logger';
 
 /**
  * The MiddlewareLoader class is responsible for loading middlewares
@@ -53,7 +54,7 @@ export class MiddlewareLoader {
           try {
             await import(fullPath);
           } catch (error) {
-            console.error(`Failed to load middlewares from ${file}:`, error);
+            logger.error(`Failed to load middlewares from ${file}:`, error);
           }
         }
       }

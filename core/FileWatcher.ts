@@ -7,6 +7,7 @@ import { GateLoader } from './gates/GateLoader';
 import { ValidatorLoader } from './validators/ValidatorLoader';
 import { MiddlewareLoader } from './middlewares/MiddlewareLoader';
 import path from 'path';
+import { logger } from './logger';
 
 interface WatchConfig {
   path: string;
@@ -82,7 +83,7 @@ export class FileWatchManager {
         `Watching entire project, but only reloading specific paths.`
       );
     } catch (error) {
-      console.error('Failed to set up watcher:', error);
+      logger.error('Failed to set up watcher:', error);
     }
   }
 

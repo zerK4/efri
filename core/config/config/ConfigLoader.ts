@@ -1,6 +1,7 @@
 import fs from 'fs';
 import { join } from 'path';
 import { config } from './CoreConfig';
+import { logger } from '../../logger';
 
 /**
  * The ConfigLoader class is responsible for loading gates
@@ -57,8 +58,8 @@ export class ConfigLoader {
               config.defineConfig(configName, imported.config);
             }
           } catch (error) {
-            console.error(`Failed to load config from ${file}:`, error);
-            console.error(error);
+            logger.error(`Failed to load config from ${file}:`, error);
+            logger.error(error);
           }
         }
       }

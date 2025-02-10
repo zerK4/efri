@@ -3,6 +3,7 @@ import chalk from 'chalk';
 import { mkdirSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import { migration } from '../bootstrap/migration';
+import { logger } from '../logger';
 
 export default class MakeMigration extends Command {
   name = 'make:migration';
@@ -17,7 +18,7 @@ export default class MakeMigration extends Command {
 
     // Validate that a name is provided
     if (!name) {
-      console.error(chalk.red('❌ Error: A migration name must be provided.'));
+      logger.error(chalk.red('❌ Error: A migration name must be provided.'));
       return;
     }
 

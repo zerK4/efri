@@ -146,7 +146,6 @@ export class Migrator {
           );
         } catch (error) {
           logger.error(`Error running migration ${migrationName}:`, error);
-          console.error(`Error running migration ${migrationName}:`, error);
           await this.db
             .connection()
             .query()
@@ -227,7 +226,7 @@ export class Migrator {
             `Error rolling back migration ${migration.name}:`,
             error
           );
-          console.error(
+          logger.error(
             `${chalk.bgRed.white(' ERROR ')} ${chalk.yellow(
               `rolling back migration ${migration.name}`
             )}:`,

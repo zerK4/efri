@@ -5,6 +5,7 @@ import type { RouteInfo } from '../types/routes';
 import { PluginLoader } from '../plugins/PluginLoader';
 import type { HttpMethod } from '../types';
 import { config } from '../config';
+import { logger } from '../logger';
 
 const app = config.get('app');
 
@@ -18,7 +19,7 @@ export default class RouteLoader {
     const plugins = PluginLoader.plugins;
 
     // Load routes from the route plugin
-    const routePlugin = plugins.find(
+    const routePlugin = plugins?.find(
       (plugin) => plugin.type === 'route-plugin'
     );
     if (routePlugin?.routes) {
@@ -47,7 +48,7 @@ export default class RouteLoader {
 
         routes.push(...processedPluginRoutes);
       } catch (error) {
-        console.error(
+        logger.error(
           `Failed to load routes from plugin ${routePlugin.name}:`,
           error
         );
@@ -123,7 +124,7 @@ export default class RouteLoader {
 
             await import(fullPath);
           } catch (error) {
-            console.error(`Failed to load routes from ${file}:`, error);
+            logger.error(`Failed to load routes from ${file}:`, error);
           }
         }
       }
