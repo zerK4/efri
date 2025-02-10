@@ -11,9 +11,10 @@ import { PluginLoader } from './plugins/PluginLoader';
 import RouteLoader from './router/RouteLoader';
 import { Router } from './router/Router';
 import { ValidatorLoader } from './validators/ValidatorLoader';
+import { CoreError } from './errors/CoreError';
 
-export class Application {
-  private static instance: Application;
+export class Efri {
+  private static instance: Efri;
   private router: Router;
   private maxPortAttempts = 10;
 
@@ -22,33 +23,83 @@ export class Application {
     dotenv.config();
   }
 
-  public static getInstance(): Application {
-    if (!Application.instance) {
-      Application.instance = new Application();
+  public static getInstance(): Efri {
+    if (!Efri.instance) {
+      Efri.instance = new Efri();
     }
-    return Application.instance;
+    return Efri.instance;
   }
 
   public getRouter(): Router {
     return this.router;
   }
 
-  private async initialize() {
-    RouteLoader.loadRoutesFromDirectory();
-    CommandLoader.loadCommands();
-    MiddlewareLoader.loadMiddlewaresFromDirectoy();
-    PluginLoader.discoverPlugins();
-    await ConfigLoader.loadConfigsFromDirectoy();
-    GateLoader.loadGatesFromDirectory();
-    ValidatorLoader.loadValidatorsFromDirectory();
-    loadModels();
+  private async initialize(): Promise<void> {
+    try {
+      // Step 1: Load configurations
+      await this.safeLoad(
+        () => ConfigLoader.loadConfigsFromDirectoy(),
+        'ConfigLoader'
+      );
+
+      // Step 2: Load middlewares
+      await this.safeLoad(
+        () => MiddlewareLoader.loadMiddlewaresFromDirectoy(),
+        'MiddlewareLoader'
+      );
+
+      // Step 3: Load routes
+      await this.safeLoad(
+        () => RouteLoader.loadRoutesFromDirectory(),
+        'RouteLoader'
+      );
+
+      // Step 4: Load other components
+      await Promise.all([
+        this.safeLoad(() => PluginLoader.discoverPlugins(), 'PluginLoader'),
+        this.safeLoad(() => CommandLoader.loadCommands(), 'CommandLoader'),
+        this.safeLoad(() => GateLoader.loadGatesFromDirectory(), 'GateLoader'),
+        this.safeLoad(
+          () => ValidatorLoader.loadValidatorsFromDirectory(),
+          'ValidatorLoader'
+        ),
+        this.safeLoad(() => loadModels(), 'loadModels'),
+      ]);
+      console.log(
+        chalk.greenBright('✔︎'),
+        'All components loaded successfully.'
+      );
+      console.log(chalk.dim('-------------------------------------'));
+    } catch (error) {
+      console.error('Initialization failed:', error);
+      throw new CoreError({
+        message: 'Initialization failed',
+      });
+    }
+  }
+
+  /**
+   * Helper function to safely execute a loading function and log errors.
+   * @param loaderFunction The function to execute.
+   * @param loaderName The name of the loader (for logging purposes).
+   */
+  private async safeLoad<T>(
+    loaderFunction: () => Promise<T> | T,
+    loaderName: string
+  ): Promise<void> {
+    try {
+      await loaderFunction();
+    } catch (error) {
+      console.error(`${loaderName} failed to load:`, error);
+      throw error; // Rethrow to stop the initialization process
+    }
   }
 
   private async tryServe(port: number): Promise<void> {
     try {
       Bun.serve({
         port,
-        fetch: (req) => this.router.handleRequest(req),
+        fetch: (req, server) => this.router.handleRequest(req, server),
         error: (err) => {
           console.error(err);
           return new Response(err.message, {

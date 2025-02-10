@@ -1,5 +1,6 @@
 import type { ZodSchema } from 'zod';
 import { validator } from '../validators/CoreValidator';
+import type { Server } from 'bun'; // Import the Server type from Bun
 
 export interface ExtendedRequest extends Request {
   bytes(): Promise<Uint8Array>;
@@ -23,6 +24,8 @@ export interface ExtendedRequest extends Request {
       message?: string;
     };
   }>;
+  server: Server; // Add the Bun Server object to the ExtendedRequest interface
+  ip: string; // Convenience getter for the client's IP address
 }
 
 export class RequestWrapper implements ExtendedRequest {
@@ -30,11 +33,32 @@ export class RequestWrapper implements ExtendedRequest {
   private originalRequest: Request;
   private _bodyUsed = false;
   private _bytes = 0;
+  private _server: Server; // Store the Bun Server object
 
-  constructor(request: Request) {
+  constructor(request: Request, server: Server) {
     this.originalRequest = request;
+    this._server = server; // Store the Bun Server object
   }
 
+  // Add a getter for the Bun Server object
+  get server(): Server {
+    return this._server;
+  }
+
+  // Add a convenience getter for the client's IP address
+  get ip(): string {
+    // Try to get the IP from the X-Forwarded-For header (for production)
+    const forwardedFor = this.headers.get('x-forwarded-for');
+    if (forwardedFor) {
+      // Extract the first IP address from the X-Forwarded-For header
+      return forwardedFor.split(',')[0].trim();
+    }
+
+    // Fallback to Bun's requestIP method (for local development)
+    return this._server.requestIP(this.originalRequest)?.address || 'unknown';
+  }
+
+  // Rest of the class remains the same...
   get body(): any {
     return this._body;
   }
@@ -135,7 +159,7 @@ export class RequestWrapper implements ExtendedRequest {
     });
   }
 
-  //custom
+  // Custom methods
   getInput(key: string, defaultValue: any = null): any {
     if (this._body && typeof this._body === 'object') {
       return this._body[key] ?? defaultValue;

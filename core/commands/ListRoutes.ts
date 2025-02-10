@@ -5,6 +5,7 @@ import { Command } from '../cli/Command';
 import type { RouteInfo } from '../types/routes';
 import path from 'path';
 import { PluginLoader } from '../plugins/PluginLoader';
+import { MiddlewareLoader } from '../middlewares/MiddlewareLoader';
 
 export default class ListRoutes extends Command {
   name = 'routes:list';
@@ -43,6 +44,7 @@ export default class ListRoutes extends Command {
     args: string[];
     options: Record<string, boolean>;
   }): Promise<void> {
+    await MiddlewareLoader.loadMiddlewaresFromDirectoy();
     await PluginLoader.discoverPlugins();
     const routes = await RouteLoader.loadRoutesFromDirectory(true);
 
@@ -78,9 +80,13 @@ export default class ListRoutes extends Command {
         a?.file?.localeCompare(b?.file ?? '') || a?.path?.localeCompare(b.path)
     );
 
-    sortedStandardRoutes.forEach((route) => {
+    sortedStandardRoutes.forEach((route, index) => {
       if (route.file !== currentFile) {
-        console.log(chalk.yellow(`  File: ${route.file}`));
+        // Add spacing between file groups
+        if (index > 0) {
+          console.log('');
+        }
+        console.log(chalk.yellow(`  File: ${route.file}\n`));
         currentFile = route.file;
       }
 
@@ -100,7 +106,11 @@ export default class ListRoutes extends Command {
 
       const pluginGroups = this.groupRoutesByPlugin(pluginRoutes);
 
-      Object.entries(pluginGroups).forEach(([pluginName, routes]) => {
+      Object.entries(pluginGroups).forEach(([pluginName, routes], index) => {
+        // Add spacing between plugin groups
+        if (index > 0) {
+          console.log('');
+        }
         console.log(chalk.magenta(`  Plugin: ${pluginName}`));
 
         routes.forEach((route) => {
@@ -112,7 +122,6 @@ export default class ListRoutes extends Command {
                 : '')
           );
         });
-        console.log(''); // Add spacing between plugins
       });
     }
 

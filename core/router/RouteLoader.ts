@@ -8,68 +8,53 @@ import { config } from '../config';
 
 const app = config.get('app');
 
-/**
- * The RouteLoader class is responsible for loading routes
- * from the project and registered plugins.
- */
 export default class RouteLoader {
   private static packageRoot = join(__dirname, '../..');
 
-  /**
-   * Loads routes from the project and registered plugins.
-   * @param withSourceInfo
-   * @returns
-   */
   static async loadRoutesFromDirectory(
     withSourceInfo = false
   ): Promise<RouteInfo[]> {
     const routes: RouteInfo[] = [];
     const plugins = PluginLoader.plugins;
 
-    const pluginRoutes = plugins.find(
+    // Load routes from the route plugin
+    const routePlugin = plugins.find(
       (plugin) => plugin.type === 'route-plugin'
-    )?.routes;
-
-    /**
-     * Load plugin routes
-     */
-    for (const plugin of PluginLoader.plugins) {
+    );
+    if (routePlugin?.routes) {
       try {
         const processedPluginRoutes = withSourceInfo
-          ? pluginRoutes?.map((route) => ({
+          ? routePlugin.routes.map((route) => ({
               ...route,
-              file: route.file || `plugin:${plugin.name}`,
+              file: route.file || `plugin:${routePlugin.name}`,
               line: route.line || 0,
               method: route.method,
               path: route.path,
               middleware: route.middleware || [],
             }))
-          : pluginRoutes;
+          : routePlugin.routes;
 
-        // Register routes in the Router
-        processedPluginRoutes?.forEach((route) => {
-          Router.addRoute(
-            route.method,
-            route.path,
-            route.handler,
-            route.middleware
-          );
+        processedPluginRoutes.forEach((route) => {
+          if (!Router.has(route.path)) {
+            Router.addRoute(
+              route.method,
+              route.path,
+              route.handler,
+              route.middleware
+            );
+          }
         });
-
-        if (!processedPluginRoutes) return routes;
 
         routes.push(...processedPluginRoutes);
       } catch (error) {
         console.error(
-          `Failed to load routes from plugin ${plugin.name}:`,
+          `Failed to load routes from plugin ${routePlugin.name}:`,
           error
         );
       }
     }
 
-    /**
-     * Load package routes (silently skip if directory doesn't exist)
-     */
+    // Load package routes
     const packageRoutesPath = join(this.packageRoot, 'core/routes');
     if (fs.existsSync(packageRoutesPath)) {
       const packageRoutes = await this.loadRoutesFromPath(
@@ -79,6 +64,7 @@ export default class RouteLoader {
       routes.push(...packageRoutes);
     }
 
+    // Load production routes if in production
     const prodRoutesPath = join(process.cwd(), 'dist/routes');
     if (
       (fs.existsSync(prodRoutesPath) &&
@@ -92,9 +78,7 @@ export default class RouteLoader {
       routes.push(...prodRoutes);
     }
 
-    /**
-     * Load project routes (log warning if directory doesn't exist)
-     */
+    // Load project routes
     const projectRoutesPath = join(process.cwd(), 'src/routes');
     if (fs.existsSync(projectRoutesPath)) {
       const projectRoutes = await this.loadRoutesFromPath(
@@ -111,12 +95,6 @@ export default class RouteLoader {
     return routes;
   }
 
-  /**
-   * Loads routes from a given path.
-   * @param basePath
-   * @param withSourceInfo
-   * @returns
-   */
   private static async loadRoutesFromPath(
     basePath: string,
     withSourceInfo: boolean
@@ -155,12 +133,6 @@ export default class RouteLoader {
     return routes;
   }
 
-  /**
-   * Extract routes from a given source path.
-   * @param sourceCode
-   * @param filePath
-   * @returns
-   */
   static async extractRoutesFromSource(
     sourceCode: string,
     filePath: string
@@ -173,30 +145,47 @@ export default class RouteLoader {
       (method) => router[method as keyof typeof router]
     );
 
+    // Override router methods to capture route information
     originalMethods.forEach((method) => {
       const originalMethod = router[method as keyof typeof router];
 
       router[method as keyof Router] = ((...args: any[]) => {
         if (typeof args[0] === 'string') {
           const [path, , middleware = []] = args;
+
+          // Apply group prefixes and middleware
+          const fullPrefix = router['groupStack']
+            .map((group) => group.prefix || '')
+            .filter(Boolean)
+            .join('');
+
+          const fullPath = `${fullPrefix}${path}`;
+
+          const allMiddleware = [
+            ...middleware,
+            ...router['groupStack'].flatMap((group) => group.middleware || []),
+          ];
+
           const lines = sourceCode
             .substring(0, sourceCode.indexOf(path))
             .split('\n');
 
           extractedRoutes.push({
             method: method.toUpperCase() as HttpMethod,
-            path,
+            path: fullPath,
             file: relative(process.cwd(), filePath),
             line: lines.length,
-            middleware,
+            middleware: allMiddleware,
           });
         }
         return (originalMethod as any).apply(router, args);
       }) as any;
     });
 
+    // Import the file to trigger route registration
     await import(filePath);
 
+    // Restore original router methods
     originalMethods.forEach((method, index) => {
       (router as any)[method] = methodBackups[index];
     });

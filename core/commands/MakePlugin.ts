@@ -10,7 +10,7 @@ import { extractPathInfo } from '../cli/utils';
 
 export default class MakePlugin extends Command {
   name = 'make:plugin';
-  description = 'Create a new plugin with optional nested directory structure';
+  description = 'Create a new plugin default to route plugin.';
   dependencies = [];
 
   options = [

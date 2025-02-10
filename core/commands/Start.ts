@@ -1,8 +1,7 @@
 import { Command } from '../cli/Command';
 import chalk from 'chalk';
 import { spawn } from 'child_process';
-import { dirname, resolve } from 'path';
-import { fileURLToPath } from 'url';
+import { resolve } from 'path';
 
 export default class StartServer extends Command {
   name = 'start';
@@ -17,9 +16,7 @@ export default class StartServer extends Command {
       const startDev = context.args.includes('--dev');
       console.log(chalk.green('🚀 Starting EFRI server...'));
 
-      const __filename = fileURLToPath(import.meta.url);
-      const __dirname = dirname(__filename);
-      const scriptPath = resolve(__dirname, '../scripts/startServer.ts');
+      const scriptPath = resolve(process.cwd(), 'src/index.ts');
 
       const serverProcess = spawn(
         'bun',

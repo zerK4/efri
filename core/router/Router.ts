@@ -1,13 +1,16 @@
+import type { Server } from 'bun';
+import qs from 'qs';
 import { CoreError } from '../errors/CoreError';
 import { ResponseHelper } from '../helpers/ResponseHelper';
 import { logger } from '../logger';
 import { MiddlewareStack } from '../middlewares/Middleware';
 import type { HttpMethod, Route, RouteHandler } from '../types/router';
 import { RequestWrapper } from './RequestWrapper';
+import { RouteTrie } from './RouteTrie';
 
 export class Router {
   private static instance: Router;
-  private routes: Route[] = [];
+  private routeTrie = new RouteTrie();
   private groupStack: { prefix?: string; middleware?: string[] }[] = [];
 
   private constructor() {}
@@ -19,14 +22,16 @@ export class Router {
     return Router.instance;
   }
 
-  public static getRoutes(): Route[] {
-    if (!Router.instance) {
-      Router.instance = new Router();
-    }
-    return Router.instance.routes;
+  public static has(path: string): boolean {
+    return Router.getInstance().routeTrie.findRoute('GET', path) !== null;
   }
 
-  public static addRoute(
+  public static getRoutes(): Route[] {
+    const router = Router.getInstance();
+    return router.routeTrie.collectRoutes();
+  }
+
+  static addRoute(
     method: HttpMethod,
     path: string,
     handler: RouteHandler,
@@ -44,22 +49,63 @@ export class Router {
   ) {
     const fullPrefix = this.groupStack
       .map((group) => group.prefix || '')
-      .filter((prefix) => prefix)
+      .filter(Boolean)
       .join('');
 
-    const allMiddleware = this.groupStack.reduce(
-      (acc, group) => {
-        return [...acc, ...(group.middleware || [])];
-      },
-      [...middleware]
-    );
+    const fullPath = `${fullPrefix}${path}`;
 
-    this.routes.push({
+    // Early validation and return
+    if (!this.validateRoutePath(fullPath)) {
+      return;
+    }
+
+    // Early return if route exists
+    if (this.routeTrie.findRoute(method, fullPath)) {
+      return;
+    }
+
+    const allMiddleware = [
+      ...middleware,
+      ...this.groupStack.flatMap((group) => group.middleware || []),
+    ];
+
+    if (!this.validateMiddlewareNames(allMiddleware)) {
+      return;
+    }
+
+    this.routeTrie.addRoute(method, fullPath, {
       method,
-      path: `${fullPrefix}${path}`,
+      path: fullPath,
       handler,
       middleware: allMiddleware,
     });
+  }
+
+  private validateRoutePath(path: string): boolean {
+    const parts = path.split('/').filter((part) => part !== '');
+
+    for (const part of parts) {
+      if (part.startsWith('{') && part.endsWith('}')) {
+        const paramName = part.slice(1, -1);
+        if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(paramName)) {
+          throw new Error(
+            `Invalid route parameter: ${part}. Use alphanumeric names like {id}.`
+          );
+        }
+      }
+    }
+    return true;
+  }
+
+  private validateMiddlewareNames(middlewareNames: string[]): boolean {
+    const middlewareStack = MiddlewareStack.getInstance();
+
+    for (const name of middlewareNames) {
+      if (!middlewareStack.get(name)) {
+        throw new Error(`Middleware "${name}" is not registered.`);
+      }
+    }
+    return true;
   }
 
   public get(path: string, handler: RouteHandler, middleware: string[] = []) {
@@ -155,57 +201,6 @@ export class Router {
     return handler({ req, res, params, query });
   }
 
-  private matchRoute(
-    method: string,
-    path: string
-  ): {
-    route: Route;
-    params: Record<string, string>;
-    query: Record<string, any>;
-  } | null {
-    for (const route of this.routes) {
-      if (route.method !== method) continue;
-
-      const routeParts = route.path.split('/').filter((part) => part !== '');
-      const requestParts = path.split('/').filter((part) => part !== '');
-
-      if (routeParts.length !== requestParts.length) continue;
-
-      const params: Record<string, string> = {};
-      let matches = true;
-
-      for (let i = 0; i < routeParts.length; i++) {
-        const routePart = routeParts[i];
-        const requestPart = requestParts[i];
-
-        const paramMatch = routePart.match(/^{(.+)}$/);
-        if (paramMatch) {
-          const paramName = paramMatch[1];
-          params[paramName] = requestPart;
-        } else if (routePart !== requestPart) {
-          matches = false;
-          break;
-        }
-      }
-
-      if (matches) {
-        const query: Record<string, any> = {};
-        try {
-          const urlObj = new URL(`http://dummy.com${path}`);
-          urlObj.searchParams.forEach((value, key) => {
-            query[key] = value;
-          });
-        } catch (error) {
-          // Ignore errors in query parsing
-        }
-
-        return { route, params, query };
-      }
-    }
-
-    return null;
-  }
-
   private async executeMiddleware(
     middlewareNames: string[],
     req: RequestWrapper,
@@ -237,23 +232,32 @@ export class Router {
     return executeMiddlewareChain(0);
   }
 
-  public async handleRequest(originalReq: Request): Promise<Response> {
-    const req = new RequestWrapper(originalReq);
+  public async handleRequest(
+    originalReq: Request,
+    server: Server
+  ): Promise<Response> {
+    const req = new RequestWrapper(originalReq, server);
     const res = ResponseHelper.getInstance();
     try {
       const url = new URL(req.url);
-      const match = this.matchRoute(req.method, url.pathname);
+      const match = this.routeTrie.findRoute(
+        req.method as HttpMethod,
+        url.pathname
+      );
 
       if (!match) {
         return res.json({ error: 'The route was not found' }, 404);
       }
 
-      const { route, params, query } = match;
+      const { route, params } = match;
 
       // Parse request body for methods that typically include one
       if (['POST', 'PUT', 'PATCH'].includes(req.method)) {
         await this.parseRequestBody(req);
       }
+
+      // Parse query parameters using qs
+      const query = qs.parse(url.search, { ignoreQueryPrefix: true });
 
       if (route.middleware?.length) {
         return await this.executeMiddleware(

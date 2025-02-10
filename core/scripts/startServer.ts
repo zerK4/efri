@@ -1,8 +1,8 @@
-import { Application } from '..';
+import { Efri } from '..';
 
 async function startApplication() {
   try {
-    Application.getInstance().serve();
+    Efri.getInstance().serve();
   } catch (error) {
     console.error('Failed to start application:', error);
     process.exit(1);
