@@ -7,5 +7,14 @@ export interface ConfigRegistry {
   connections: DatabaseConfig;
   logger: LoggerConfig;
   cors: CorsOptions;
+  app: AppConfig;
   [key: string]: BaseConfig;
+}
+
+export interface AppConfig {
+  env: string;
+  name: string;
+  port: number;
+  booted: boolean;
+  onBoot: () => Promise<void>;
 }

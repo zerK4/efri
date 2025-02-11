@@ -17,11 +17,19 @@ export class CoreConfig {
 
   defineConfig<T extends z.ZodType>(
     name: string,
-    schema: T | Record<string, unknown>
+    schema: T | Record<string, unknown>,
+    options: { prefix?: string } = {}
   ): void {
     let config: unknown;
+
     if (typeof schema.safeParse === 'function') {
-      const parsed = schema.safeParse(process.env);
+      const transformedEnv = this.transformEnvKeys(
+        process.env,
+        name,
+        options.prefix
+      );
+
+      const parsed = schema.safeParse(transformedEnv);
       if (!parsed.success) {
         throw new CoreError({
           message: `Environment variable validation failed:\n${parsed.error.issues
@@ -31,14 +39,33 @@ export class CoreConfig {
         });
       }
 
-      // Store the parsed data instead of the schema
       config = parsed.data;
     } else {
-      // If it's a plain object, store it directly
       config = schema;
     }
 
     this.configs.set(name, config);
+  }
+
+  private transformEnvKeys(
+    env: NodeJS.ProcessEnv,
+    configName: string,
+    customPrefix?: string
+  ): Record<string, string | undefined> {
+    const prefix = customPrefix || configName.toUpperCase();
+    const transformedEnv: Record<string, string | undefined> = {};
+
+    Object.entries(env).forEach(([key, value]) => {
+      if (key.startsWith(`${prefix}_`)) {
+        const schemaKey = key.slice(prefix.length + 1).toLowerCase();
+        transformedEnv[schemaKey] = value;
+      }
+    });
+
+    return {
+      ...env,
+      ...transformedEnv,
+    };
   }
 
   get<K extends string & keyof ConfigRegistry>(
@@ -59,8 +86,16 @@ export class CoreConfig {
     this.configs.clear();
   }
 
-  validateSchema<T extends z.ZodType>(schema: T): z.infer<T> {
-    const parsed = schema.safeParse(process.env);
+  validateSchema<T extends z.ZodType>(
+    schema: T,
+    options: { prefix?: string } = {}
+  ): z.infer<T> {
+    const transformedEnv = this.transformEnvKeys(
+      process.env,
+      '',
+      options.prefix
+    );
+    const parsed = schema.safeParse(transformedEnv);
 
     if (!parsed.success) {
       throw new CoreError({

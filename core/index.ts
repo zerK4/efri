@@ -2,7 +2,6 @@ import Bun from 'bun';
 import chalk from 'chalk';
 import dotenv from 'dotenv';
 import { CommandLoader } from './cli/CommandLoader';
-import { app } from './config/app';
 import { ConfigLoader } from './config/config/ConfigLoader';
 import { GateLoader } from './gates';
 import { MiddlewareLoader } from './middlewares/MiddlewareLoader';
@@ -13,6 +12,7 @@ import { Router } from './router/Router';
 import { ValidatorLoader } from './validators/ValidatorLoader';
 import { CoreError } from './errors/CoreError';
 import { logger } from './logger';
+import { config } from './config';
 
 export class Efri {
   private static instance: Efri;
@@ -128,9 +128,11 @@ export class Efri {
     }
   }
 
-  public async serve() {
+  public async serve(p?: number) {
     await this.initialize();
-    let port = app.port ?? 3000;
+    const app = config.get('app');
+
+    let port = p ?? app?.port ?? 3000;
 
     for (let attempt = 0; attempt < this.maxPortAttempts; attempt++) {
       try {
